@@ -21,9 +21,29 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsLoading(false)
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.error || "Login failed")
+        return
+      }
+
+      alert(data.message || "Logged in successfully")
+      window.location.href = "/dashboard"
+    } catch (err) {
+      console.error(err)
+      alert("Something went wrong")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +105,9 @@ export default function LoginPage() {
               <CardTitle className="text-2xl md:text-3xl font-bold font-display text-gray-900 mb-2">
                 Welcome Back
               </CardTitle>
-              <p className="text-gray-600 text-sm md:text-base">Sign in to your OpHosts account</p>
+              <p className="text-gray-600 text-sm md:text-base">
+                Sign in to your OpHosts account
+              </p>
             </motion.div>
           </CardHeader>
 
@@ -157,7 +179,10 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <Link href="#" className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200">
+                <Link
+                  href="#"
+                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
+                >
                   Forgot password?
                 </Link>
               </motion.div>
@@ -182,7 +207,6 @@ export default function LoginPage() {
                       "Sign In"
                     )}
                   </span>
-                  {/* Ripple effect */}
                   <div className="absolute inset-0 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                 </Button>
               </motion.div>
