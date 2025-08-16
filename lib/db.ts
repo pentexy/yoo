@@ -7,11 +7,12 @@ if (typeof window === "undefined") {
     } else {
       console.warn("[v0] DATABASE_URL environment variable is not set")
     }
+    throw new Error("DATABASE_URL environment variable is required")
   } else {
     console.log("[v0] Database URL configured:", process.env.DATABASE_URL ? "✓" : "✗")
   }
 }
 
-const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null
+const sql = neon(process.env.DATABASE_URL!)
 
 export { sql }
