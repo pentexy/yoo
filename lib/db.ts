@@ -15,7 +15,7 @@ if (typeof window === "undefined") {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : { rejectUnauthorized: false }, // Allow self-signed certs in development too
+  ssl: false, // Disable SSL entirely for local PostgreSQL connections
 })
 
 const sql = (strings: TemplateStringsArray, ...values: any[]) => {
