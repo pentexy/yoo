@@ -6,58 +6,63 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Registration attempt started")
     const { name, email, password } = await request.json()
-    console.log("[v0] Request data received:", { name, email, passwordLength: password?.length })
-
-    // Validate input
+    
+    // Basic validation
     if (!name || !email || !password) {
-      console.log("[v0] Validation failed: missing fields")
-      return NextResponse.json({ success: false, message: "All fields are required" }, { status: 400 })
+      return NextResponse.json(
+        { success: false, message: "All fields are required" }, 
+        { status: 400 }
+      )
     }
 
-    console.log("[v0] Testing database connection...")
+    if (password.length < 8) {
+      return NextResponse.json(
+        { success: false, message: "Password must be at least 8 characters" },
+        { status: 400 }
+      )
+    }
+
+    // Test database connection
     try {
       await sql`SELECT 1 as test`
-      console.log("[v0] Database connection successful")
     } catch (dbError) {
       console.error("[v0] Database connection failed:", dbError)
-      return NextResponse.json({ success: false, message: "Database connection failed" }, { status: 500 })
+      return NextResponse.json(
+        { success: false, message: "Database connection failed" }, 
+        { status: 500 }
+      )
     }
 
-    // Check if user already exists
-    console.log("[v0] Checking if user exists...")
+    // Check for existing user
     const existingUser = await sql`
-      SELECT id FROM users WHERE email = ${email}
+      SELECT id FROM users WHERE email = ${email.toLowerCase().trim()}
     `
-    console.log("[v0] Existing user check result:", existingUser.length)
 
-    if (existingUser.length > 0) {
-      console.log("[v0] User already exists")
-      return NextResponse.json({ success: false, message: "User already exists" }, { status: 400 })
+    if (existingUser.rows?.length > 0) {
+      return NextResponse.json(
+        { success: false, message: "User already exists" },
+        { status: 409 } // 409 Conflict is more appropriate for duplicate resources
+      )
     }
 
-    // Hash password
-    console.log("[v0] Hashing password...")
+    // Create new user
     const hashedPassword = await hashPassword(password)
-    console.log("[v0] Password hashed successfully")
-
-    // Create user
-    console.log("[v0] Creating user in database...")
     await sql`
       INSERT INTO users (name, email, password)
-      VALUES (${name}, ${email}, ${hashedPassword})
+      VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${hashedPassword})
+      RETURNING id
     `
-    console.log("[v0] User created successfully")
 
     return NextResponse.json({
       success: true,
       message: "Account created successfully",
-    })
+    }, { status: 201 }) // 201 Created for successful resource creation
+
   } catch (error) {
     console.error("[v0] Registration error:", error)
-    if (error instanceof Error) {
-      console.error("[v0] Error message:", error.message)
-      console.error("[v0] Error stack:", error.stack)
-    }
-    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 }
+    )
   }
 }
