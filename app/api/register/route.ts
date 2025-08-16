@@ -1,3 +1,4 @@
+// app/api/register/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { hashPassword } from "@/lib/auth"
@@ -38,10 +39,10 @@ export async function POST(request: NextRequest) {
       SELECT id FROM users WHERE email = ${email.toLowerCase().trim()}
     `
 
-    if (existingUser.rows?.length > 0) {
+    if (existingUser.length > 0) {
       return NextResponse.json(
         { success: false, message: "User already exists" },
-        { status: 409 } // 409 Conflict is more appropriate for duplicate resources
+        { status: 409 } // 409 Conflict
       )
     }
 
@@ -50,13 +51,12 @@ export async function POST(request: NextRequest) {
     await sql`
       INSERT INTO users (name, email, password)
       VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${hashedPassword})
-      RETURNING id
     `
 
     return NextResponse.json({
       success: true,
       message: "Account created successfully",
-    }, { status: 201 }) // 201 Created for successful resource creation
+    }, { status: 201 }) // 201 Created
 
   } catch (error) {
     console.error("[v0] Registration error:", error)
