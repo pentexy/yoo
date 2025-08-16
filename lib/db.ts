@@ -1,9 +1,8 @@
+// lib/db.ts
 import { Pool } from "pg";
-import fs from "fs";
-import path from "path";
 
 // ======================
-// AIVEN-SPECIFIC CONFIG
+// AIVEN-SPECIFIC CERTIFICATE
 // ======================
 const AIVEN_CA_CERT = `
 -----BEGIN CERTIFICATE-----
@@ -35,19 +34,18 @@ BdX4DhTtZyhrM0UeYjxff+XSmhxMc6c8cuqL815RTRsFwBpbWd2WyEJQSc+XMSdL
 `.trim();
 
 // ======================
-// DATABASE CONNECTION
+// DATABASE POOL
 // ======================
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Your Aiven URL
+  connectionString: process.env.DATABASE_URL, // Aiven PostgreSQL URL
   ssl: {
     ca: AIVEN_CA_CERT,
-    rejectUnauthorized: true // Must be true for Aiven
+    rejectUnauthorized: true,
   },
-  // Aiven-optimized settings
-  connectionTimeoutMillis: 10000, // 10s connection timeout
-  idleTimeoutMillis: 30000, // 30s idle timeout
-  max: 8, // Aiven recommends low connection counts
-  allowExitOnIdle: true
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 8,
+  allowExitOnIdle: true,
 });
 
 // ======================
@@ -62,28 +60,24 @@ const pool = new Pool({
     } finally {
       client.release();
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("🔴 Aiven PostgreSQL: Connection failed");
     console.error("Error details:", {
       code: err.code,
       message: err.message,
       stack: err.stack
     });
-    
-    // Provide Aiven-specific troubleshooting
+
     if (err.code === 'SELF_SIGNED_CERT_IN_CHAIN') {
-      console.log("\n🔧 Aiven SSL Fix Required:");
-      console.log("1. Ensure you're using their CA certificate (included above)");
-      console.log("2. Verify your connection string includes '?sslmode=require'");
-      console.log("3. Check for certificate updates: https://ca.aiven.io/");
+      console.log("\n🔧 SSL Fix: Ensure you're using Aiven CA certificate.");
     }
 
-    process.exit(1); // Crash app if DB is unreachable
+    process.exit(1); // crash if DB unreachable
   }
 })();
 
 // ======================
-// SQL HELPER FUNCTION
+// SQL HELPER
 // ======================
 export const sql = Object.assign(
   (strings: TemplateStringsArray, ...values: any[]) => {
@@ -94,7 +88,6 @@ export const sql = Object.assign(
     return pool.query(query, values);
   },
   {
-    // Additional helpers
     raw: (text: string) => pool.query(text),
     getClient: () => pool.connect(),
     end: () => pool.end()
@@ -114,7 +107,4 @@ const shutdown = async () => {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
-// ======================
-// TYPE EXPORTS
-// ======================
 export type SqlQuery = ReturnType<typeof sql>;
