@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [particles, setParticles] = useState<Array<{ left: string; top: string; delay: string; duration: string }>>([])
   const router = useRouter()
 
   const [formData, setFormData] = useState({
@@ -27,6 +28,16 @@ export default function RegisterPage() {
     confirmPassword: "",
     agreeToTerms: false,
   })
+
+  useEffect(() => {
+    const generatedParticles = [...Array(15)].map((_, i) => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 8}s`,
+      duration: `${8 + Math.random() * 4}s`,
+    }))
+    setParticles(generatedParticles)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,15 +134,15 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center p-4">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {particles.map((particle, i) => (
           <div
             key={i}
             className="absolute w-2 h-2 bg-blue-400/20 rounded-full animate-particle"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              animationDuration: `${8 + Math.random() * 4}s`,
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration,
             }}
           />
         ))}
