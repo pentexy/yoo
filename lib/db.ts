@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { Pool } from "pg"
 
 if (typeof window === "undefined") {
   if (!process.env.DATABASE_URL) {
@@ -13,6 +13,17 @@ if (typeof window === "undefined") {
   }
 }
 
-const sql = neon(process.env.DATABASE_URL!)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+})
+
+const sql = (strings: TemplateStringsArray, ...values: any[]) => {
+  let query = strings[0]
+  for (let i = 0; i < values.length; i++) {
+    query += `$${i + 1}` + strings[i + 1]
+  }
+  return pool.query(query, values)
+}
 
 export { sql }
