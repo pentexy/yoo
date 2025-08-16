@@ -7,13 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -26,9 +31,36 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsLoading(false)
+    setError("")
+
+    try {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setShowSuccess(true)
+        setTimeout(() => {
+          router.push("/login")
+        }, 2000)
+      } else {
+        setError(data.message || "Registration failed")
+      }
+    } catch (error) {
+      setError("Network error. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,9 +82,46 @@ export default function RegisterPage() {
 
   const strength = passwordStrength(formData.password)
 
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <CheckCircle className="w-12 h-12 text-white" />
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-2xl font-bold text-gray-900 mb-2"
+          >
+            Account Created Successfully!
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="text-gray-600"
+          >
+            Redirecting to login...
+          </motion.p>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center p-4">
-      {/* Background particles */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {[...Array(15)].map((_, i) => (
           <div
@@ -74,7 +143,6 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Back to home button */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -107,6 +175,16 @@ export default function RegisterPage() {
           </CardHeader>
 
           <CardContent>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+              >
+                {error}
+              </motion.div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <motion.div
@@ -202,7 +280,6 @@ export default function RegisterPage() {
                   </button>
                 </div>
 
-                {/* Password strength indicator */}
                 {formData.password && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -315,7 +392,6 @@ export default function RegisterPage() {
                       "Create Account"
                     )}
                   </span>
-                  {/* Ripple effect */}
                   <div className="absolute inset-0 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                 </Button>
               </motion.div>

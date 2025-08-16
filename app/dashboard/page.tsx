@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Server, Monitor, Cpu, Wifi, Shield } from "lucide-react"
+import { Server, Monitor, Cpu, Wifi, Shield, LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { getAuthToken, getUser, logout } from "@/lib/client-auth"
 
 const rdpServices = [
   {
@@ -95,7 +97,59 @@ const vpsServices = [
 
 export default function Dashboard() {
   const [selectedService, setSelectedService] = useState<"rdp" | "vps">("rdp")
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
   const currentServices = selectedService === "rdp" ? rdpServices : vpsServices
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAuthToken()
+      const userData = getUser()
+
+      if (!token) {
+        router.push("/login")
+        return
+      }
+
+      if (userData) {
+        setUser(userData)
+        setIsLoading(false)
+      } else {
+        try {
+          const response = await fetch("/api/dashboard", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+
+          const data = await response.json()
+
+          if (data.success) {
+            setUser(data.user)
+          } else {
+            logout()
+            return
+          }
+        } catch (error) {
+          logout()
+          return
+        }
+      }
+
+      setIsLoading(false)
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white">
@@ -113,20 +167,30 @@ export default function Dashboard() {
                 OpHosts
               </span>
             </motion.div>
-            <nav className="hidden md:flex items-center space-x-6">
-              <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Home
-              </a>
-              <a href="/dashboard" className="text-blue-600 font-medium">
-                Dashboard
-              </a>
-              <a href="/profile" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Profile
-              </a>
-              <a href="/orders" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Orders
-              </a>
-            </nav>
+            <div className="flex items-center space-x-4">
+              <nav className="hidden md:flex items-center space-x-6">
+                <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Home
+                </a>
+                <a href="/dashboard" className="text-blue-600 font-medium">
+                  Dashboard
+                </a>
+                <a href="/profile" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Profile
+                </a>
+                <a href="/orders" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Orders
+                </a>
+              </nav>
+              {user && (
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user.name}!</span>
+                  <Button onClick={logout} variant="ghost" size="sm" className="text-gray-600 hover:text-red-600">
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -135,7 +199,7 @@ export default function Dashboard() {
         {/* Page Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-4">
-            Choose Your Service
+            {user ? `Hello ${user.name.split(" ")[0]}, your account is live!` : "Choose Your Service"}
           </h1>
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
             Select between our premium RDP and VPS solutions tailored for your needs

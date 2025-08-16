@@ -1,46 +1,43 @@
-// lib/auth.ts
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs"
 
-const JWT_SECRET = process.env.JWT_SECRET as string;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-export async function hashPassword(password: string) {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(password, salt);
+export interface User {
+  id: string
+  name: string
+  email: string
+  created_at: string
 }
 
-export async function comparePasswords(password: string, hashed: string) {
-  return bcrypt.compare(password, hashed);
+export interface JWTPayload {
+  userId: string
+  email: string
+  name: string
 }
 
-export function createToken(payload: object) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export const hashPassword = async (password: string): Promise<string> => {
+  return bcrypt.hash(password, 12)
 }
 
-export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET);
+export const comparePassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+  return bcrypt.compare(password, hashedPassword)
 }
 
-export function setAuthCookie(token: string) {
-  cookies().set({
-    name: "token",
-    value: token,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
+export const generateToken = (user: User): string => {
+  const payload: JWTPayload = {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+  }
+
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" })
 }
 
-export function clearAuthCookie() {
-  cookies().set({
-    name: "token",
-    value: "",
-    httpOnly: true,
-    expires: new Date(0),
-    path: "/",
-  });
+export const verifyToken = (token: string): JWTPayload | null => {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch (error) {
+    return null
+  }
 }

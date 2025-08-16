@@ -9,10 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { setAuthToken, setUser } from "@/lib/client-auth"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -21,26 +26,31 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const response = await fetch("/api/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(formData),
       })
 
-      const data = await res.json()
+      const data = await response.json()
 
-      if (!res.ok) {
-        alert(data.error || "Login failed")
-        return
+      if (data.success) {
+        // Store token and user data
+        setAuthToken(data.token)
+        setUser(data.user)
+
+        // Redirect to dashboard
+        router.push("/dashboard")
+      } else {
+        setError(data.message || "Login failed")
       }
-
-      alert(data.message || "Logged in successfully")
-      window.location.href = "/dashboard"
-    } catch (err) {
-      console.error(err)
-      alert("Something went wrong")
+    } catch (error) {
+      setError("Network error. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -105,13 +115,21 @@ export default function LoginPage() {
               <CardTitle className="text-2xl md:text-3xl font-bold font-display text-gray-900 mb-2">
                 Welcome Back
               </CardTitle>
-              <p className="text-gray-600 text-sm md:text-base">
-                Sign in to your OpHosts account
-              </p>
+              <p className="text-gray-600 text-sm md:text-base">Sign in to your OpHosts account</p>
             </motion.div>
           </CardHeader>
 
           <CardContent>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+              >
+                {error}
+              </motion.div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -179,10 +197,7 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <Link
-                  href="#"
-                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
-                >
+                <Link href="#" className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200">
                   Forgot password?
                 </Link>
               </motion.div>
@@ -207,6 +222,7 @@ export default function LoginPage() {
                       "Sign In"
                     )}
                   </span>
+                  {/* Ripple effect */}
                   <div className="absolute inset-0 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                 </Button>
               </motion.div>

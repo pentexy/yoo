@@ -1,6 +1,8 @@
 "use client"
 
 import type React from "react"
+import { useRouter } from "next/navigation"
+import { isAuthenticated } from "@/lib/client-auth"
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
@@ -153,6 +155,16 @@ function Header() {
 }
 
 function HeroSection() {
+  const router = useRouter()
+
+  const handleGetStarted = () => {
+    if (isAuthenticated()) {
+      router.push("/dashboard")
+    } else {
+      router.push("/register")
+    }
+  }
+
   return (
     <section className="pt-32 pb-20 px-4">
       <div className="container mx-auto text-center">
@@ -190,6 +202,7 @@ function HeroSection() {
           >
             <Button
               size="lg"
+              onClick={handleGetStarted}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold hover:scale-105 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/25 touch-manipulation"
             >
               Start Free Trial
@@ -308,6 +321,16 @@ function AnimatedCounter({
 }
 
 function PricingSection() {
+  const router = useRouter()
+
+  const handleGetStarted = () => {
+    if (isAuthenticated()) {
+      router.push("/dashboard")
+    } else {
+      router.push("/register")
+    }
+  }
+
   const plans = [
     {
       name: "Starter RDP",
@@ -389,6 +412,7 @@ function PricingSection() {
                   ))}
 
                   <Button
+                    onClick={handleGetStarted}
                     className={`w-full mt-8 touch-manipulation ${
                       plan.popular
                         ? "bg-blue-600 hover:bg-blue-700 text-white"
