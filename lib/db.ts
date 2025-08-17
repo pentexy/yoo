@@ -36,3 +36,5 @@ export async function testConnection() {
   await db.admin().ping()
   return true
 }
+
+export { connectToDatabase }

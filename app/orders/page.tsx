@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,64 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Server, Search, Download, Eye, MoreHorizontal, Calendar, DollarSign } from "lucide-react"
-
-const orders = [
-  {
-    id: "ORD-001",
-    service: "Professional RDP",
-    type: "RDP",
-    status: "active",
-    price: "$19.99",
-    billingCycle: "Monthly",
-    createdDate: "2024-01-15",
-    nextBilling: "2024-02-15",
-    serverLocation: "New York, US",
-  },
-  {
-    id: "ORD-002",
-    service: "Business VPS",
-    type: "VPS",
-    status: "active",
-    price: "$14.99",
-    billingCycle: "Monthly",
-    createdDate: "2024-01-10",
-    nextBilling: "2024-02-10",
-    serverLocation: "London, UK",
-  },
-  {
-    id: "ORD-003",
-    service: "Gaming RDP",
-    type: "RDP",
-    status: "suspended",
-    price: "$29.99",
-    billingCycle: "Monthly",
-    createdDate: "2024-01-05",
-    nextBilling: "2024-02-05",
-    serverLocation: "Frankfurt, DE",
-  },
-  {
-    id: "ORD-004",
-    service: "Enterprise VPS",
-    type: "VPS",
-    status: "pending",
-    price: "$59.99",
-    billingCycle: "Monthly",
-    createdDate: "2024-01-20",
-    nextBilling: "2024-02-20",
-    serverLocation: "Tokyo, JP",
-  },
-  {
-    id: "ORD-005",
-    service: "Basic RDP",
-    type: "RDP",
-    status: "cancelled",
-    price: "$9.99",
-    billingCycle: "Monthly",
-    createdDate: "2023-12-01",
-    nextBilling: "-",
-    serverLocation: "Sydney, AU",
-  },
-]
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -87,22 +29,70 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [orders, setOrders] = useState([])
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    pending: 0,
+    totalSpent: 0,
+  })
+
+  useEffect(() => {
+    fetchOrders()
+  }, [])
+
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        window.location.href = "/login"
+        return
+      }
+
+      const response = await fetch("/api/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setOrders(data.orders)
+        setStats(data.stats)
+      } else {
+        console.error("Failed to fetch orders")
+        if (response.status === 401) {
+          localStorage.removeItem("token")
+          window.location.href = "/login"
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      order.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+      order.service?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || order.status === statusFilter
-    const matchesType = typeFilter === "all" || order.type.toLowerCase() === typeFilter.toLowerCase()
+    const matchesType = typeFilter === "all" || order.type?.toLowerCase() === typeFilter.toLowerCase()
 
     return matchesSearch && matchesStatus && matchesType
   })
 
-  const stats = {
-    total: orders.length,
-    active: orders.filter((o) => o.status === "active").length,
-    pending: orders.filter((o) => o.status === "pending").length,
-    totalSpent: orders.reduce((sum, order) => sum + Number.parseFloat(order.price.replace("$", "")), 0),
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -277,64 +267,77 @@ export default function Orders() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Next Billing</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.map((order, index) => (
-                      <motion.tr
-                        key={order.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="hover:bg-blue-50/50 transition-colors"
-                      >
-                        <TableCell className="font-medium">{order.id}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{order.service}</div>
-                            <div className="text-sm text-gray-500">{order.billingCycle}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="border-blue-200 text-blue-700">
-                            {order.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{order.price}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{order.serverLocation}</TableCell>
-                        <TableCell className="text-sm">{order.nextBilling}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              {orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <Server className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No orders yet</h3>
+                  <p className="text-gray-600 mb-4">Start by purchasing your first RDP or VPS service</p>
+                  <Button asChild className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                    <a href="/dashboard">Browse Services</a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Next Billing</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredOrders.map((order, index) => (
+                        <motion.tr
+                          key={order.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-blue-50/50 transition-colors"
+                        >
+                          <TableCell className="font-medium">{order.id}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{order.service}</div>
+                              <div className="text-sm text-gray-500">{order.billingCycle}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-blue-200 text-blue-700">
+                              {order.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(order.status)}>
+                              {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">${order.price}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{order.serverLocation}</TableCell>
+                          <TableCell className="text-sm">
+                            {order.nextBilling ? new Date(order.nextBilling).toLocaleDateString() : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

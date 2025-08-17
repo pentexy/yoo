@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,29 +9,102 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Server, User, CreditCard, Shield, Bell, Edit3, Save } from "lucide-react"
+import { Server, User, Shield, Bell, Edit3, Save } from "lucide-react"
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    company: "Tech Solutions Inc.",
-    phone: "+1 (555) 123-4567",
-    address: "123 Main Street",
-    city: "New York",
-    country: "United States",
-    bio: "Full-stack developer with 5+ years of experience in cloud infrastructure and web development.",
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+    phone: "",
+    bio: "",
   })
+
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        window.location.href = "/login"
+        return
+      }
+
+      const response = await fetch("/api/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFormData({
+          firstName: data.user.firstName || "",
+          lastName: data.user.lastName || "",
+          email: data.user.email || "",
+          company: data.user.company || "",
+          phone: data.user.phone || "",
+          bio: data.user.bio || "",
+        })
+      } else {
+        console.error("Failed to fetch profile")
+        if (response.status === 401) {
+          localStorage.removeItem("token")
+          window.location.href = "/login"
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = () => {
-    setIsEditing(false)
-    // Here you would typically save to your backend
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        setIsEditing(false)
+        console.log("Profile updated successfully")
+      } else {
+        console.error("Failed to update profile")
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -135,7 +208,7 @@ export default function Profile() {
             className="lg:col-span-3"
           >
             <Tabs defaultValue="personal" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 bg-white border border-blue-100">
+              <TabsList className="grid w-full grid-cols-3 bg-white border border-blue-100">
                 <TabsTrigger
                   value="personal"
                   className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
@@ -149,10 +222,6 @@ export default function Profile() {
                 >
                   <Shield className="h-4 w-4 mr-2" />
                   Security
-                </TabsTrigger>
-                <TabsTrigger value="billing" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Billing
                 </TabsTrigger>
                 <TabsTrigger
                   value="notifications"
@@ -175,9 +244,16 @@ export default function Profile() {
                         onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
                         variant={isEditing ? "default" : "outline"}
                         className={isEditing ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white" : ""}
+                        disabled={saving}
                       >
-                        {isEditing ? <Save className="h-4 w-4 mr-2" /> : <Edit3 className="h-4 w-4 mr-2" />}
-                        {isEditing ? "Save Changes" : "Edit Profile"}
+                        {saving ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        ) : isEditing ? (
+                          <Save className="h-4 w-4 mr-2" />
+                        ) : (
+                          <Edit3 className="h-4 w-4 mr-2" />
+                        )}
+                        {saving ? "Saving..." : isEditing ? "Save Changes" : "Edit Profile"}
                       </Button>
                     </div>
                   </CardHeader>
@@ -283,34 +359,6 @@ export default function Profile() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="billing">
-                <Card className="border-blue-100 bg-white/80 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>Billing Information</CardTitle>
-                    <CardDescription>Manage your payment methods and billing details</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 border border-blue-100 rounded-lg">
-                        <div>
-                          <h3 className="font-medium">Payment Method</h3>
-                          <p className="text-sm text-gray-600">•••• •••• •••• 4242</p>
-                        </div>
-                        <Button variant="outline">Update</Button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 border border-blue-100 rounded-lg">
-                        <div>
-                          <h3 className="font-medium">Billing Address</h3>
-                          <p className="text-sm text-gray-600">123 Main Street, New York, US</p>
-                        </div>
-                        <Button variant="outline">Edit</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
               <TabsContent value="notifications">
                 <Card className="border-blue-100 bg-white/80 backdrop-blur-sm">
                   <CardHeader>
@@ -321,7 +369,6 @@ export default function Profile() {
                     <div className="space-y-4">
                       {[
                         { title: "Service Updates", description: "Get notified about service status and maintenance" },
-                        { title: "Billing Notifications", description: "Receive alerts about payments and invoices" },
                         { title: "Security Alerts", description: "Important security notifications and login alerts" },
                         { title: "Marketing Emails", description: "Promotional offers and product updates" },
                       ].map((item, index) => (
