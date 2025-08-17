@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getCollection } from "@/lib/db"
 import { comparePassword, generateToken } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
@@ -12,17 +12,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const users = await sql`
-      SELECT id, name, email, password, created_at 
-      FROM users 
-      WHERE email = ${email}
-    `
+    const usersCollection = await getCollection("users")
+    const user = await usersCollection.findOne({ email })
 
-    if (users.length === 0) {
+    if (!user) {
       return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 })
     }
-
-    const user = users[0]
 
     // Verify password
     const isValidPassword = await comparePassword(password, user.password)
@@ -31,14 +26,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session record (optional)
-    await sql`
-      INSERT INTO sessions (user_id)
-      VALUES (${user.id})
-    `
+    const sessionsCollection = await getCollection("sessions")
+    await sessionsCollection.insertOne({
+      user_id: user._id,
+      login_time: new Date(),
+    })
 
     // Generate JWT token
     const token = generateToken({
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
       created_at: user.created_at,

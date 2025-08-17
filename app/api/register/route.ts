@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getCollection, testConnection } from "@/lib/db"
 import { hashPassword } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Testing database connection...")
     try {
-      await sql`SELECT 1 as test`
+      await testConnection()
       console.log("[v0] Database connection successful")
     } catch (dbError) {
       console.error("[v0] Database connection failed:", dbError)
@@ -25,12 +25,11 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists
     console.log("[v0] Checking if user exists...")
-    const existingUser = await sql`
-      SELECT id FROM users WHERE email = ${email}
-    `
-    console.log("[v0] Existing user check result:", existingUser.length)
+    const usersCollection = await getCollection("users")
+    const existingUser = await usersCollection.findOne({ email })
+    console.log("[v0] Existing user check result:", existingUser ? "found" : "not found")
 
-    if (existingUser.length > 0) {
+    if (existingUser) {
       console.log("[v0] User already exists")
       return NextResponse.json({ success: false, message: "User already exists" }, { status: 400 })
     }
@@ -42,10 +41,12 @@ export async function POST(request: NextRequest) {
 
     // Create user
     console.log("[v0] Creating user in database...")
-    await sql`
-      INSERT INTO users (name, email, password)
-      VALUES (${name}, ${email}, ${hashedPassword})
-    `
+    await usersCollection.insertOne({
+      name,
+      email,
+      password: hashedPassword,
+      created_at: new Date(),
+    })
     console.log("[v0] User created successfully")
 
     return NextResponse.json({

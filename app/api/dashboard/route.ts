@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getCollection } from "@/lib/db"
 import { verifyToken } from "@/lib/auth"
+import { ObjectId } from "mongodb"
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,22 +19,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user data
-    const users = await sql`
-      SELECT id, name, email, created_at 
-      FROM users 
-      WHERE id = ${payload.userId}
-    `
+    const usersCollection = await getCollection("users")
+    const user = await usersCollection.findOne({ _id: new ObjectId(payload.userId) })
 
-    if (users.length === 0) {
+    if (!user) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
     }
-
-    const user = users[0]
 
     return NextResponse.json({
       success: true,
       user: {
-        id: user.id,
+        id: user._id.toString(),
         name: user.name,
         email: user.email,
         created_at: user.created_at,

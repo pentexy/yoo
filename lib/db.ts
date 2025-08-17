@@ -1,4 +1,7 @@
-import { Pool } from "pg"
+import { MongoClient, type Db, type Collection } from "mongodb"
+
+let client: MongoClient | null = null
+let db: Db | null = null
 
 if (typeof window === "undefined") {
   if (!process.env.DATABASE_URL) {
@@ -13,17 +16,23 @@ if (typeof window === "undefined") {
   }
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: false, // Disable SSL entirely for local PostgreSQL connections
-})
-
-const sql = (strings: TemplateStringsArray, ...values: any[]) => {
-  let query = strings[0]
-  for (let i = 0; i < values.length; i++) {
-    query += `$${i + 1}` + strings[i + 1]
+async function connectToDatabase() {
+  if (!client) {
+    client = new MongoClient(process.env.DATABASE_URL!)
+    await client.connect()
+    db = client.db()
+    console.log("[v0] Connected to MongoDB")
   }
-  return pool.query(query, values)
+  return { client, db: db! }
 }
 
-export { sql }
+export async function getCollection(name: string): Promise<Collection> {
+  const { db } = await connectToDatabase()
+  return db.collection(name)
+}
+
+export async function testConnection() {
+  const { db } = await connectToDatabase()
+  await db.admin().ping()
+  return true
+}
